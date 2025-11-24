@@ -21,7 +21,7 @@ export const BelongsToFolders = ({ bookId }: { bookId: number }) => {
           fontWeight: '600',
           color: '#CFE3FF',
         }}>
-        Belonging Folders
+        Belonging Collections
       </Text>
       {!data || data.length === 0 ? (
         <View

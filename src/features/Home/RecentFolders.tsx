@@ -18,7 +18,7 @@ export const RecentReadFolders = () => {
 
   return (
     <View className="flex flex-col gap-4 ">
-      <LayoutTitle title="Recent Folders" />
+      <LayoutTitle title="Recent Collections" />
       {collections && collections.length > 0 ? (
         <FoldersLayout data={colData} showNames={true} />
       ) : (

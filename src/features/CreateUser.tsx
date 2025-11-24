@@ -45,9 +45,10 @@ export const CreateUser = ({ updateIntro }: { updateIntro: () => void }) => {
                 paddingHorizontal: 12,
                 paddingVertical: 12,
                 fontSize: 14,
-                fontWeight: 500,
+                fontWeight: '500',
               } as any
             }
+            placeholderTextColor="#6B7280"
             value={name}
             onChangeText={setName}
             placeholder="Enter User Name..."

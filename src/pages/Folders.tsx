@@ -4,8 +4,8 @@ import { PageHeader } from '@/components/PageHeader';
 
 export const Folders = () => {
   return (
-    <View className="flex-col gap-6 px-4 py-5">
-      <PageHeader name="Folders" />
+    <View className="mb-12 mt-4 flex-col gap-4  px-4">
+      <PageHeader name="Collections" />
       <GridFolderLayout />
     </View>
   );

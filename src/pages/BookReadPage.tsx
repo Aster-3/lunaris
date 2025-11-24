@@ -1,6 +1,6 @@
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '@/Interfaces';
-import { Text, View, ViewStyle } from 'react-native';
+import { Text, View, ViewStyle, ActivityIndicator } from 'react-native';
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { OpenEpubService } from '@/services/OpenEpubService';
 import { useFonts } from 'expo-font';
@@ -28,11 +28,14 @@ export const BookReadPage = () => {
   const isMountedRef = useRef<boolean>(true);
   const indexRef = useRef<number>(2);
   const loadingPageRef = useRef<boolean>(false);
+  const pageCache = useRef<Map<number, string>>(new Map());
+  const initialPageLoadedRef = useRef<boolean>(false);
 
   const [chapter, setChapter] = useState<string | null>(null);
   const [index, setIndex] = useState<number>(2);
   const [loading, setLoading] = useState<boolean>(true);
   const [isBottomSheetOpen, setIsBottomSheetOpen] = useState<boolean>(false);
+  const [initializing, setInitializing] = useState<boolean>(true);
 
   const [fontsLoaded] = useFonts({
     Tinos: require('../../assets/fonts/Tinos-Regular.ttf'),
@@ -43,23 +46,29 @@ export const BookReadPage = () => {
 
   useEffect(() => {
     isMountedRef.current = true;
+    const cache = pageCache.current;
 
     const initializeBook = async () => {
       try {
+        setInitializing(true);
         await updateBookLastReading(bookId);
         const pageData = await getBookLastPage(bookId);
 
         if (isMountedRef.current) {
-          if (pageData.lastReadPage && pageData.lastReadPage > 1) {
-            setIndex(pageData.lastReadPage);
-            indexRef.current = pageData.lastReadPage;
-          } else {
-            setIndex(2);
-            indexRef.current = 2;
-          }
+          const targetIndex =
+            pageData.lastReadPage && pageData.lastReadPage > 1 ? pageData.lastReadPage : 2;
+
+          setIndex(targetIndex);
+          indexRef.current = targetIndex;
+          setInitializing(false);
         }
       } catch (error) {
         console.error('Error initializing book:', error);
+        if (isMountedRef.current) {
+          setIndex(2);
+          indexRef.current = 2;
+          setInitializing(false);
+        }
       }
     };
 
@@ -68,6 +77,7 @@ export const BookReadPage = () => {
     return () => {
       isMountedRef.current = false;
       updateBookLastPage(bookId, indexRef.current);
+      cache.clear();
       console.log('Book Read Page Unmounted!');
     };
   }, [bookId]);
@@ -89,8 +99,28 @@ export const BookReadPage = () => {
     }
   }, [isBottomSheetOpen]);
 
-  const navigateToPage = useCallback((delta: number) => {
+  const preloadAdjacentPages = useCallback(async (currentIndex: number) => {
     if (!epubRef.current) return;
+
+    const totalPages = epubRef.current.spineList.length;
+    const pagesToPreload = [currentIndex - 1, currentIndex + 1].filter(
+      (idx) => idx >= 1 && idx <= totalPages && !pageCache.current.has(idx)
+    );
+
+    pagesToPreload.forEach(async (pageIndex) => {
+      try {
+        const html = await epubRef.current.getPage(pageIndex - 1);
+        if (html) {
+          pageCache.current.set(pageIndex, html);
+        }
+      } catch (error) {
+        console.error(`Error preloading page ${pageIndex}:`, error);
+      }
+    });
+  }, []);
+
+  const navigateToPage = useCallback((delta: number) => {
+    if (!epubRef.current || loadingPageRef.current) return;
 
     const totalPages = epubRef.current.spineList.length;
     setIndex((prev) => {
@@ -117,6 +147,8 @@ export const BookReadPage = () => {
   );
 
   useEffect(() => {
+    if (initializing) return;
+
     const loadEpub = async () => {
       try {
         setLoading(true);
@@ -128,11 +160,20 @@ export const BookReadPage = () => {
 
         const totalPages = epubRef.current.spineList.length;
         const safeIndex = Math.max(1, Math.min(index, totalPages));
-        const html = await epubRef.current.getPage(safeIndex - 1);
 
-        if (isMountedRef.current) {
+        let html = pageCache.current.get(safeIndex);
+        if (!html) {
+          html = await epubRef.current.getPage(safeIndex - 1);
+          if (html) {
+            pageCache.current.set(safeIndex, html);
+          }
+        }
+
+        if (isMountedRef.current && html) {
           setChapter(html);
           setLoading(false);
+          initialPageLoadedRef.current = true;
+          preloadAdjacentPages(safeIndex);
         }
       } catch (error) {
         console.error('Error loading EPUB:', error);
@@ -143,20 +184,29 @@ export const BookReadPage = () => {
     };
 
     loadEpub();
-  }, [uri, index]);
+  }, [uri, index, initializing, preloadAdjacentPages]);
 
   useEffect(() => {
-    if (!epubRef.current || loading || loadingPageRef.current) return;
+    if (!initialPageLoadedRef.current || !epubRef.current || loading || loadingPageRef.current)
+      return;
 
     const loadPage = async () => {
       try {
         loadingPageRef.current = true;
         const totalPages = epubRef.current.spineList.length;
         const safeIndex = Math.max(1, Math.min(index, totalPages));
-        const html = await epubRef.current.getPage(safeIndex - 1);
 
-        if (isMountedRef.current) {
+        let html = pageCache.current.get(safeIndex);
+        if (!html) {
+          html = await epubRef.current.getPage(safeIndex - 1);
+          if (html) {
+            pageCache.current.set(safeIndex, html);
+          }
+        }
+
+        if (isMountedRef.current && html) {
           setChapter(html);
+          preloadAdjacentPages(safeIndex);
         }
       } catch (error) {
         console.error('Error loading page:', error);
@@ -166,7 +216,7 @@ export const BookReadPage = () => {
     };
 
     loadPage();
-  }, [index, loading]);
+  }, [index, loading, preloadAdjacentPages]);
 
   const navigateToAnchor = useCallback((anchorId: string) => {
     webviewRef.current?.injectJavaScript(`
@@ -205,8 +255,6 @@ export const BookReadPage = () => {
         const foundIndex = epubRef.current.spineList.findIndex(
           (item: any) => item === targetFilename
         );
-
-        console.log(`Target: ${targetFilename}, Found Index: ${foundIndex}`);
 
         if (foundIndex !== -1) {
           setIndex(foundIndex + 1);
@@ -269,8 +317,12 @@ export const BookReadPage = () => {
     );
   }
 
-  if (loading || !chapter) {
-    return <View className="flex-1 bg-black" />;
+  if (initializing || loading || !chapter) {
+    return (
+      <View className="flex-1 items-center justify-center bg-black">
+        <ActivityIndicator size="small" color="#3B82F6" />
+      </View>
+    );
   }
 
   return (
@@ -293,6 +345,10 @@ export const BookReadPage = () => {
           }}
           androidLayerType="hardware"
           javaScriptEnabled={true}
+          cacheEnabled={true}
+          cacheMode="LOAD_CACHE_ELSE_NETWORK"
+          incognito={false}
+          domStorageEnabled={true}
         />
       </GestureDetector>
 

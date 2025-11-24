@@ -29,7 +29,7 @@ export const CreateBookService = async (addBook: (book: BookModel) => Promise<nu
     const copiedFileUrl = await copyPickedFile(result);
 
     const metadata = await getBookMetaData(result.uri, copiedFileUrl);
-    console.log('Metadata:', metadata);
+    // console.log('Metadata:', metadata);
     if (!metadata) return console.error('Metadata verilerine ulaşılamadı!');
 
     const { author, cover, genres, languages, title } = metadata;

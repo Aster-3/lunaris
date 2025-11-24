@@ -18,7 +18,7 @@ export const GradientLayout = ({ children }: Props) => {
       start={{ x: 0, y: 0 }}
       end={{ x: 0, y: 1 }}
       style={{ flex: 1 }}>
-      <View className="flex-1 overflow-hidden ">{children}</View>
+      <View className="flex-1 overflow-hidden  ">{children}</View>
       {showSearchBar && <SearchBarModel />}
     </LinearGradient>
   );

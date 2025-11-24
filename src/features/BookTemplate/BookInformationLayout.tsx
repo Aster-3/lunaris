@@ -29,7 +29,7 @@ export const BookInformationLayout = ({ book }: BookData) => {
       <View className="flex-row items-center gap-2">
         <View className="flex-row items-center gap-2">
           <Octicons name="flame" size={16} color="white" />
-          <Text className="text-base text-white">Auhtor:</Text>
+          <Text className="text-base text-white">Author:</Text>
         </View>
         <Text className="fond-bold text-base font-semibold text-white">
           {book.author ? book.author : 'No Create Found'}

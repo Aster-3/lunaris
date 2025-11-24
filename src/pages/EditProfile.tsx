@@ -34,7 +34,7 @@ export const EditProfile = () => {
   };
 
   return (
-    <View className="mx-4 flex-1 items-center justify-center bg-black/20">
+    <View className="mx-4 flex-1 items-center justify-center">
       <View
         style={{ marginBottom: 60, backgroundColor: '#1F2937', paddingBottom: 40 } as ViewStyle}
         className="w-full gap-6 rounded-xl  p-4 py-6 ">
@@ -57,7 +57,7 @@ export const EditProfile = () => {
 
         <View className="gap-4">
           <View className="gap-2">
-            <Text className="text-lg font-medium text-white">Name</Text>
+            <Text className="text-balance font-medium text-white">Name</Text>
             <TextInput
               style={
                 {
@@ -66,9 +66,10 @@ export const EditProfile = () => {
                   paddingHorizontal: 12,
                   paddingVertical: 12,
                   fontSize: 14,
-                  fontWeight: 500,
+                  fontWeight: '500',
                 } as any
               }
+              placeholderTextColor="#6B7280"
               value={name}
               onChangeText={setName}
               placeholder="User Name..."
